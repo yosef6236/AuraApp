@@ -1,0 +1,41 @@
+name: Build Unsigned iOS IPA
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Prebuild iOS project
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Build unsigned IPA
+        run: |
+          cd ios
+          xcodebuild -workspace AuraApp.xcworkspace -scheme AuraApp -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGNING_IDENTITY=""
+          cd build/Build/Products/Release-iphoneos
+          mkdir Payload
+          mv AuraApp.app Payload/
+          zip -r AuraApp.ipa Payload
+          mv AuraApp.ipa ../../../../../AuraApp.ipa
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuraApp-Unsigned
+          path: AuraApp.ipa
