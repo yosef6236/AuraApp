@@ -33,7 +33,11 @@
         "react-native-widget-extension",
         {
           "frequentUpdates": true,
-          "widgetsFolder": "widget"
+          "widgetsFolder": "widget",
+          "targetName": "AuraWidget",
+          "bundleIdentifier": "com.aura.app.AuraWidget",
+          "moduleFileName": "Module.swift",
+          "attributesFileName": "Attributes.swift"
         }
       ],
       [
