@@ -2,12 +2,7 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
-struct AuraWidgetAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
-        var stateText: String
-    }
-    var title: String
-}
+
 
 struct AuraWidgetLiveActivity: Widget {
     var body: some WidgetConfiguration {
