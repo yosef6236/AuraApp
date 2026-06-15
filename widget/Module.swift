@@ -16,13 +16,13 @@ public class ReactNativeWidgetExtensionModule: Module {
             }
         }
         
-        Function("startActivity") { (remainingTime: Int) -> Void in
+        Function("startActivity") { (stateText: String) -> Void in
             let logger = Logger(logHandlers: [])
             logger.info("startActivity()")
             
             if #available(iOS 16.2, *) {
-                let attributes = AuraAppAttributes()
-                let contentState = AuraAppAttributes.ContentState(remainingTime: remainingTime)
+                let attributes = AuraWidgetAttributes(title: "Aura")
+                let contentState = AuraWidgetAttributes.ContentState(stateText: stateText)
                 
                 let activityContent = ActivityContent(state: contentState, staleDate: nil)
                 
@@ -35,16 +35,16 @@ public class ReactNativeWidgetExtensionModule: Module {
             }
         }
 
-        Function("updateActivity") { (remainingTime: Int) -> Void in
+        Function("updateActivity") { (stateText: String) -> Void in
             let logger = Logger(logHandlers: [])
             logger.info("updateActivity()")
             
             if #available(iOS 16.2, *) {
-                let contentState = AuraAppAttributes.ContentState(remainingTime: remainingTime)
+                let contentState = AuraWidgetAttributes.ContentState(stateText: stateText)
                 let updatedContent = ActivityContent(state: contentState, staleDate: nil)
                 
                 Task {
-                    for activity in Activity<AuraAppAttributes>.activities {
+                    for activity in Activity<AuraWidgetAttributes>.activities {
                         await activity.update(updatedContent)
                         logger.info("Updated the Live Activity: \(activity.id)")
                     }
@@ -57,11 +57,11 @@ public class ReactNativeWidgetExtensionModule: Module {
             logger.info("endActivity()")
             
             if #available(iOS 16.2, *) {
-                let contentState = AuraAppAttributes.ContentState(remainingTime: 0)
+                let contentState = AuraWidgetAttributes.ContentState(stateText: "")
                 let finalContent = ActivityContent(state: contentState, staleDate: nil)
                 
                 Task {
-                    for activity in Activity<AuraAppAttributes>.activities {
+                    for activity in Activity<AuraWidgetAttributes>.activities {
                         await activity.end(finalContent, dismissalPolicy: .default)
                         logger.info("Ending the Live Activity: \(activity.id)")
                     }
