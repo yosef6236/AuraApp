@@ -1,6 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
 import * as Speech from 'expo-speech';
-import { Audio } from 'expo-av';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { addEventToCalendar, scheduleSmartAlert } from './calendarManager';
 
@@ -8,10 +7,7 @@ const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 export const setupAudio = async () => {
-  await Audio.setAudioModeAsync({
-    playsInSilentModeIOS: false,
-    staysActiveInBackground: true,
-  });
+  // Setup audio defaults if needed, expo-speech handles it natively on iOS
 };
 
 export const speakNatural = (text: string) => {
