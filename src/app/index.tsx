@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, StatusBar, TextInput } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, StatusBar, TextInput, AppState, AppStateStatus } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { setupAudio, analyzeClipboardImage } from './contextAnalyzer';
+import { addEventToCalendar, scheduleSmartAlert } from './calendarManager';
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -15,11 +19,51 @@ const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 export default function ChatScreen() {
+  const router = useRouter();
   const [isRecording, setIsRecording] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { id: '1', text: 'היי, אני Aura. איך אפשר לעזור?', isUser: false }
   ]);
   const [inputText, setInputText] = useState('');
+  const [suggestedAction, setSuggestedAction] = useState<any>(null);
+  const appState = useRef(AppState.currentState);
+
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      const isComplete = await AsyncStorage.getItem('aura_onboarding_complete');
+      if (isComplete !== 'true') {
+        router.replace('/onboarding');
+      } else {
+        setupAudio();
+      }
+    };
+    checkOnboarding();
+
+    const subscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        // App came to foreground
+        const action = await analyzeClipboardImage();
+        if (action && action.hasEvent) {
+          setSuggestedAction(action);
+        }
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  const handleApproveAction = async () => {
+    if (suggestedAction) {
+      const eventDate = new Date(suggestedAction.time);
+      await addEventToCalendar(suggestedAction.title, eventDate, new Date(eventDate.getTime() + 60*60*1000));
+      await scheduleSmartAlert(suggestedAction.title, eventDate, 2); // default 2 hours
+      setMessages(prev => [...prev, { id: Date.now().toString(), text: `הוספתי את ${suggestedAction.title} ליומן!`, isUser: false }]);
+      setSuggestedAction(null);
+    }
+  };
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
@@ -89,6 +133,21 @@ The user says: ${userMsg.text}`;
         <Text style={styles.headerTitle}>AURA</Text>
       </View>
 
+      {suggestedAction && (
+        <View style={styles.suggestionCard}>
+          <Text style={styles.suggestionTitle}>הצעה לפעולה 💡</Text>
+          <Text style={styles.suggestionText}>{suggestedAction.suggestedSpeech}</Text>
+          <View style={styles.suggestionButtons}>
+            <TouchableOpacity style={styles.approveBtn} onPress={handleApproveAction}>
+              <Text style={styles.approveBtnText}>כן, תוסיפי</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setSuggestedAction(null)}>
+              <Text style={styles.cancelBtnText}>לא עכשיו</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Chat List */}
       <FlatList
         data={messages}
@@ -141,6 +200,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 4,
+  },
+  suggestionCard: {
+    margin: 16,
+    padding: 16,
+    backgroundColor: '#161616',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  suggestionTitle: {
+    color: '#00ffcc',
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  suggestionText: {
+    color: '#fff',
+    marginBottom: 16,
+  },
+  suggestionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  approveBtn: {
+    backgroundColor: '#00ffcc',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  approveBtnText: {
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  cancelBtn: {
+    backgroundColor: '#333',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  cancelBtnText: {
+    color: '#fff',
   },
   chatList: {
     padding: 16,
